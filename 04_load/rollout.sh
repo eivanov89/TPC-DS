@@ -41,7 +41,7 @@ start_gpfdist()
 	sleep 1
 	get_gpfdist_port
 	if [ "$VERSION" == "gpdb_6" ]; then
-		for i in $(psql -v ON_ERROR_STOP=1 -q -A -t -c "select rank() over(partition by g.hostname order by g.datadir), g.hostname, g.datadir from gp_segment_configuration g where g.content >= 0 and g.role = 'p' order by g.hostname"); do
+		for i in $(/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -A -t -c "select rank() over(partition by g.hostname order by g.datadir), g.hostname, g.datadir from gp_segment_configuration g where g.content >= 0 and g.role = 'p' order by g.hostname"); do
 			CHILD=$(echo $i | awk -F '|' '{print $1}')
 			EXT_HOST=$(echo $i | awk -F '|' '{print $2}')
 			GEN_DATA_PATH=$(echo $i | awk -F '|' '{print $3}')
@@ -52,7 +52,7 @@ start_gpfdist()
 			sleep 1
 		done
 	else
-		for i in $(psql -v ON_ERROR_STOP=1 -q -A -t -c "select rank() over (partition by g.hostname order by p.fselocation), g.hostname, p.fselocation as path from gp_segment_configuration g join pg_filespace_entry p on g.dbid = p.fsedbid join pg_tablespace t on t.spcfsoid = p.fsefsoid where g.content >= 0 and g.role = 'p' and t.spcname = 'pg_default' order by g.hostname"); do
+		for i in $(/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -A -t -c "select rank() over (partition by g.hostname order by p.fselocation), g.hostname, p.fselocation as path from gp_segment_configuration g join pg_filespace_entry p on g.dbid = p.fsedbid join pg_tablespace t on t.spcfsoid = p.fsefsoid where g.content >= 0 and g.role = 'p' and t.spcname = 'pg_default' order by g.hostname"); do
 			CHILD=$(echo $i | awk -F '|' '{print $1}')
 			EXT_HOST=$(echo $i | awk -F '|' '{print $2}')
 			GEN_DATA_PATH=$(echo $i | awk -F '|' '{print $3}')
@@ -76,8 +76,8 @@ if [[ "$VERSION" == *"gpdb"* ]]; then
 		schema_name=$(echo $i | awk -F '.' '{print $2}')
 		table_name=$(echo $i | awk -F '.' '{print $3}')
 
-		echo "psql -v ON_ERROR_STOP=1 -f $i | grep INSERT | awk -F ' ' '{print \$3}'"
-		tuples=$(psql -v ON_ERROR_STOP=1 -f $i | grep INSERT | awk -F ' ' '{print $3}'; exit ${PIPESTATUS[0]})
+		echo "/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -f $i | grep INSERT | awk -F ' ' '{print \$3}'"
+		tuples=$(/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -f $i | grep INSERT | awk -F ' ' '{print $3}'; exit ${PIPESTATUS[0]})
 
 		log $tuples
 	done
@@ -101,8 +101,8 @@ else
 			if [[ -f $filename && -s $filename ]]; then
 				start_log
 				filename="'""$filename""'"
-				echo "psql -v ON_ERROR_STOP=1 -f $i -v filename=\"$filename\" | grep COPY | awk -F ' ' '{print \$2}'"
-				tuples=$(psql -v ON_ERROR_STOP=1 -f $i -v filename="$filename" | grep COPY | awk -F ' ' '{print $2}'; exit ${PIPESTATUS[0]})
+				echo "/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -f $i -v filename=\"$filename\" | grep COPY | awk -F ' ' '{print \$2}'"
+				tuples=$(/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -f $i -v filename="$filename" | grep COPY | awk -F ' ' '{print $2}'; exit ${PIPESTATUS[0]})
 				log $tuples
 			fi
 		done
@@ -134,20 +134,20 @@ if [[ "$VERSION" == *"gpdb"* ]]; then
 
 	#make sure root stats are gathered
 	if [ "$VERSION" == "gpdb_6" ]; then
-		for t in $(psql -v ON_ERROR_STOP=1 -q -t -A -c "select n.nspname, c.relname from pg_class c join pg_namespace n on c.relnamespace = n.oid left outer join (select starelid from pg_statistic group by starelid) s on c.oid = s.starelid join (select tablename from pg_partitions group by tablename) p on p.tablename = c.relname where n.nspname = 'tpcds' and s.starelid is null order by 1, 2"); do
+		for t in $(/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -t -A -c "select n.nspname, c.relname from pg_class c join pg_namespace n on c.relnamespace = n.oid left outer join (select starelid from pg_statistic group by starelid) s on c.oid = s.starelid join (select tablename from pg_partitions group by tablename) p on p.tablename = c.relname where n.nspname = 'tpcds' and s.starelid is null order by 1, 2"); do
 			schema_name=$(echo $t | awk -F '|' '{print $1}')
 			table_name=$(echo $t | awk -F '|' '{print $2}')
 			echo "Missing root stats for $schema_name.$table_name"
-			echo "psql -v ON_ERROR_STOP=1 -q -t -A -c \"ANALYZE ROOTPARTITION $schema_name.$table_name;\""
-			psql -v ON_ERROR_STOP=1 -q -t -A -c "ANALYZE ROOTPARTITION $schema_name.$table_name;"
+			echo "/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -t -A -c \"ANALYZE ROOTPARTITION $schema_name.$table_name;\""
+			/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -t -A -c "ANALYZE ROOTPARTITION $schema_name.$table_name;"
 		done
 	elif [ "$VERSION" == "gpdb_5" ]; then
-		for t in $(psql -v ON_ERROR_STOP=1 -q -t -A -c "select n.nspname, c.relname from pg_class c join pg_namespace n on c.relnamespace = n.oid join pg_partitions p on p.schemaname = n.nspname and p.tablename = c.relname where n.nspname = 'tpcds' and p.partitionrank is null and c.reltuples = 0 order by 1, 2"); do
+		for t in $(/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -t -A -c "select n.nspname, c.relname from pg_class c join pg_namespace n on c.relnamespace = n.oid join pg_partitions p on p.schemaname = n.nspname and p.tablename = c.relname where n.nspname = 'tpcds' and p.partitionrank is null and c.reltuples = 0 order by 1, 2"); do
 			schema_name=$(echo $t | awk -F '|' '{print $1}')
 			table_name=$(echo $t | awk -F '|' '{print $2}')
 			echo "Missing root stats for $schema_name.$table_name"
-			echo "psql -v ON_ERROR_STOP=1 -q -t -A -c \"ANALYZE ROOTPARTITION $schema_name.$table_name;\""
-			psql -v ON_ERROR_STOP=1 -q -t -A -c "ANALYZE ROOTPARTITION $schema_name.$table_name;"
+			echo "/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -t -A -c \"ANALYZE ROOTPARTITION $schema_name.$table_name;\""
+			/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -t -A -c "ANALYZE ROOTPARTITION $schema_name.$table_name;"
 		done
 	fi
 
@@ -155,12 +155,12 @@ if [[ "$VERSION" == *"gpdb"* ]]; then
 	log $tuples
 else
 	#postgresql analyze
-	for t in $(psql -v ON_ERROR_STOP=1 -q -t -A -c "select n.nspname, c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'tpcds' and c.relkind='r'"); do
+	for t in $(/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -t -A -c "select n.nspname, c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'tpcds' and c.relkind='r'"); do
 		start_log
 		schema_name=$(echo $t | awk -F '|' '{print $1}')
 		table_name=$(echo $t | awk -F '|' '{print $2}')
-		echo "psql -v ON_ERROR_STOP=1 -q -t -A -c \"ANALYZE $schema_name.$table_name;\""
-		psql -v ON_ERROR_STOP=1 -q -t -A -c "ANALYZE $schema_name.$table_name;"
+		echo "/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -t -A -c \"ANALYZE $schema_name.$table_name;\""
+		/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -q -t -A -c "ANALYZE $schema_name.$table_name;"
 		tuples="0"
 		log $tuples
 		i=$((i+1))

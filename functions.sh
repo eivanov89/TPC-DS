@@ -20,7 +20,7 @@ MASTER_HOST=$(hostname -s)
 
 get_gpfdist_port()
 {
-	all_ports=$(psql -t -A -c "select min(case when role = 'p' then port else 999999 end), min(case when role = 'm' then port else 999999 end) from gp_segment_configuration where content >= 0")
+	all_ports=$(/opt/greenplum-db-6/bin/psql -t -A -c "select min(case when role = 'p' then port else 999999 end), min(case when role = 'm' then port else 999999 end) from gp_segment_configuration where content >= 0")
 	primary_base=$(echo $all_ports | awk -F '|' '{print $1}' | head -c1)
 	mirror_base=$(echo $all_ports | awk -F '|' '{print $2}' | head -c1)
 
@@ -51,9 +51,9 @@ source_bashrc()
 get_version()
 {
 	#need to call source_bashrc first
-	VERSION=$(psql -v ON_ERROR_STOP=1 -t -A -c "SELECT CASE WHEN POSITION ('Greenplum Database 4.3' IN version) > 0 THEN 'gpdb_4_3' WHEN POSITION ('Greenplum Database 5' IN version) > 0 THEN 'gpdb_5' WHEN POSITION ('Greenplum Database 6' IN version) > 0 THEN 'gpdb_6' ELSE 'postgresql' END FROM version();") 
+	VERSION=$(/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -t -A -c "SELECT CASE WHEN POSITION ('Greenplum Database 4.3' IN version) > 0 THEN 'gpdb_4_3' WHEN POSITION ('Greenplum Database 5' IN version) > 0 THEN 'gpdb_5' WHEN POSITION ('Greenplum Database 6' IN version) > 0 THEN 'gpdb_6' ELSE 'postgresql' END FROM version();")
 	if [[ "$VERSION" == *"gpdb"* ]]; then
-		quicklz_test=$(psql -v ON_ERROR_STOP=1 -t -A -c "SELECT COUNT(*) FROM pg_compression WHERE compname = 'quicklz'")
+		quicklz_test=$(/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -t -A -c "SELECT COUNT(*) FROM pg_compression WHERE compname = 'quicklz'")
 		if [ "$quicklz_test" -eq "1" ]; then
 			SMALL_STORAGE="appendonly=true, orientation=column"
 			MEDIUM_STORAGE="appendonly=true, orientation=column"
@@ -130,7 +130,7 @@ create_hosts_file()
 	get_version
 
 	if [[ "$VERSION" == *"gpdb"* ]]; then
-		psql -v ON_ERROR_STOP=1 -t -A -c "SELECT DISTINCT hostname FROM gp_segment_configuration WHERE role = 'p' AND content >= 0" -o $LOCAL_PWD/segment_hosts.txt
+		/opt/greenplum-db-6/bin/psql -v ON_ERROR_STOP=1 -t -A -c "SELECT DISTINCT hostname FROM gp_segment_configuration WHERE role = 'p' AND content >= 0" -o $LOCAL_PWD/segment_hosts.txt
 	else
 		#must be PostgreSQL
 		echo $MASTER_HOST > $LOCAL_PWD/segment_hosts.txt

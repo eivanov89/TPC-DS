@@ -32,29 +32,29 @@ if [ "$return_status" -eq "0" ]; then
 	log $tuples
 else
 	#get stats on all non-partitioned tables and all partitions
-	for i in $(psql -A -t -v ON_ERROR_STOP=ON -c "SELECT lpad(row_number() over() + $max_id, 3, '0') || '.' || n.nspname || '.' || c.relname FROM pg_class c JOIN pg_namespace n on c.relnamespace = n.oid WHERE n.nspname = 'tpcds' AND c.relname NOT IN (SELECT DISTINCT tablename FROM pg_partitions p WHERE schemaname = 'tpcds') AND c.reltuples::bigint = 0"); do
+	for i in $(/opt/greenplum-db-6/bin/psql -A -t -v ON_ERROR_STOP=ON -c "SELECT lpad(row_number() over() + $max_id, 3, '0') || '.' || n.nspname || '.' || c.relname FROM pg_class c JOIN pg_namespace n on c.relnamespace = n.oid WHERE n.nspname = 'tpcds' AND c.relname NOT IN (SELECT DISTINCT tablename FROM pg_partitions p WHERE schemaname = 'tpcds') AND c.reltuples::bigint = 0"); do
 
 		start_log
 		id=`echo $i | awk -F '.' '{print $1}'`
 		schema_name=`echo $i | awk -F '.' '{print $2}'`
 		table_name=`echo $i | awk -F '.' '{print $3}'`
 
-		echo "psql -a -v ON_ERROR_STOP=ON -c \"ANALYZE $schema_name.$table_name\""
-		psql -a -v ON_ERROR_STOP=ON -c "ANALYZE $schema_name.$table_name"
+		echo "/opt/greenplum-db-6/bin/psql -a -v ON_ERROR_STOP=ON -c \"ANALYZE $schema_name.$table_name\""
+		/opt/greenplum-db-6/bin/psql -a -v ON_ERROR_STOP=ON -c "ANALYZE $schema_name.$table_name"
 		tuples="0"
 		log $tuples
 	done
 
 	#analyze root partitions of partitioned tables
-	for i in $(psql -A -t -v ON_ERROR_STOP=ON -c "SELECT lpad(row_number() over() + $max_id, 3, '0') || '.' || n.nspname || '.' || c.relname FROM pg_class c JOIN pg_namespace n on c.relnamespace = n.oid WHERE n.nspname = 'tpcds' AND c.relname IN (SELECT DISTINCT tablename FROM pg_partitions p WHERE schemaname = 'tpcds') AND c.reltuples::bigint = 0"); do
+	for i in $(/opt/greenplum-db-6/bin/psql -A -t -v ON_ERROR_STOP=ON -c "SELECT lpad(row_number() over() + $max_id, 3, '0') || '.' || n.nspname || '.' || c.relname FROM pg_class c JOIN pg_namespace n on c.relnamespace = n.oid WHERE n.nspname = 'tpcds' AND c.relname IN (SELECT DISTINCT tablename FROM pg_partitions p WHERE schemaname = 'tpcds') AND c.reltuples::bigint = 0"); do
 		start_log
 
 		id=`echo $i | awk -F '.' '{print $1}'`
 		schema_name=`echo $i | awk -F '.' '{print $2}'`
 		table_name=`echo $i | awk -F '.' '{print $3}'`
 
-		echo "psql -a -v ON_ERROR_STOP=ON -c \"ANALYZE ROOTPARTITION $schema_name.$table_name\""
-		psql -a -v ON_ERROR_STOP=ON -c "ANALYZE ROOTPARTITION $schema_name.$table_name"
+		echo "/opt/greenplum-db-6/bin/psql -a -v ON_ERROR_STOP=ON -c \"ANALYZE ROOTPARTITION $schema_name.$table_name\""
+		/opt/greenplum-db-6/bin/psql -a -v ON_ERROR_STOP=ON -c "ANALYZE ROOTPARTITION $schema_name.$table_name"
 		tuples="0"
 		log $tuples
 	done
